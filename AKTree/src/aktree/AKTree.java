@@ -5,17 +5,184 @@
  */
 package aktree;
 
-import java.util.ArrayList;
+import java.util.Objects;
+import java.util.Scanner;
 
 /**
+ * The AKTree object is essentially a binary tree; that is, appending a leaf to
+ * to the tree will cause it to be added as far down as it needs to be and
+ * basically following a binary tree algorithm. The tree itself, however,
+ * supports any object that implements the <code>Comparable</code> interface.
+ *
+ * This tree "allows" duplicates in that if you add a duplicate, the tree won't
+ * be mad but also won't overwrite the value or add it elsewhere in the tree.
+ * For example, adding 3 to the following tree
+ *
+ * 3
+ *  / \
+ * 1 4
+ *
+ * will result in the exact same tree (even the 3 value isn't overwritten).
  *
  * @author Chris
  * @param <T>
  */
-public class AKTree<T> {
+public class AKTree<T extends Comparable> {
 
+    // the tree's root node
     private AKTreeNode<T> root;
 
+    // keeps track of the size of the tree, as long as you use add() 
+    // and remove() methods. 
+    private int size = 0;
+
+    /**
+     * creates an empty AKTree
+     */
+    public AKTree() {
+        root = null;
+    }
+
+    /**
+     * Returns the size of the tree, guaranteed accurate as long as you use the
+     * tree's add() and remove() methods. Use tree.confirmSize() if you're not
+     * sure this is the correct size.
+     *
+     * @return the size of the tree
+     */
+    public int getSize() {
+        return size;
+    }
+
+    /**
+     * Recalculates the size of this tree by traversing it and summing its
+     * leaves.
+     */
+    public void confirmSize() {
+        // TODO: calculate size here with a traversal
+    }
+
+    /**
+     * Adds the passed object to the tree in the appropriate place, ignoring
+     * duplicate values (see the class-level doc).
+     *
+     * @param object the object to add to this tree.
+     */
+    public void add(T object) {
+        if (root == null) {
+            root = new AKTreeNode<>(object);
+            size = 1;
+        } else {
+            add(object, root);
+        }
+    }
+
+    // recursively adds the passed object to the tree in the proper place, 
+    // ignoring duplicate values
+    private void add(T object, AKTreeNode<T> parent) {
+        if (object.compareTo(parent.getData()) == 0) {
+            // ignore duplicates
+        } else if (object.compareTo(parent.getData()) < 0) {
+            // object is less than the parent, set or recurse the left child
+            if (parent.getLeftChild() == null) {
+                parent.setLeftChild(new AKTreeNode<>(object));
+                size++;
+            } else {
+                add(object, parent.getLeftChild());
+            }
+        } else {
+            // object is greater than the parent, set or recurse the right child
+            if (parent.getRightChild() == null) {
+                parent.setRightChild(new AKTreeNode<>(object));
+                size++;
+            } else {
+                add(object, parent.getRightChild());
+            }
+        }
+    }
+
+    public void remove(T object) {
+        // TODO: define a removal algorithm?
+    }
+
+    /**
+     * Performs a pre-order depth-first traversal of this tree, using the passed
+     * AKTreeTraverser. Performs the traversal's <code>traverse</code> method on
+     * each object in this tree, in pre-order (root, then left node, then right
+     * node).
+     *
+     * @param traversal an <code>AKTreeTraverser</code> object. Its
+     * <code>traverse</code> method is called on each object in this tree.
+     */
+    public void depthFirstTraversal(AKTreeTraverser<T> traversal) {
+        depthFirstTraversal(traversal, root, 1);
+    }
+
+    // performs a recursive depth-first traversal on the passed node.
+    private void depthFirstTraversal(AKTreeTraverser<T> traversal, AKTreeNode<T> node, int level) {
+        if (node != null) {
+            traversal.traverse(node.getData(), level);
+            if (node.getLeftChild() != null) {
+                depthFirstTraversal(traversal, node.getLeftChild(), level + 1);
+            }
+            if (node.getRightChild() != null) {
+                depthFirstTraversal(traversal, node.getRightChild(), level + 1);
+            }
+        }
+    }
+
+    /**
+     *
+     * @return
+     */
+    @Override
+    public String toString() {
+        ToStringTraversal<T> traveler = new ToStringTraversal();
+        depthFirstTraversal(traveler);
+        return traveler.toString();
+    }
+
+    /**
+     * Example main, executes the tree.
+     *
+     * TODO: replace with unit tests
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        AKTree<String> tree = new AKTree<>();
+        Scanner scanner = new Scanner("shame on you if you step through to the old dirty bastard brooklyn zoo");
+        while (scanner.hasNext()) {
+            String token = scanner.next();
+            tree.add(token);
+        }
+        System.out.println(tree.toString());
+    }
+}
+
+class ToStringTraversal<T> extends AKTreeTraverser<T> {
+
+    public StringBuilder string = new StringBuilder();
+
+    @Override
+    public void traverse(T object, int level) {
+        if (level > 1) {
+            string.append("|");
+        }
+        for (int i = 0; i < level; i++) {
+            string.append("-");
+        }
+        string.append(object.toString()).append("\n");
+    }
+
+    /**
+     *
+     * @return
+     */
+    @Override
+    public String toString() {
+        return string.toString();
+    }
 }
 
 /**
@@ -33,14 +200,15 @@ class AKTreeNode<T> {
     private AKTreeNode<T> parent;
 
     // a list of this node's children
-    private ArrayList<AKTreeNode<T>> children;
+    private AKTreeNode<T> leftChild, rightChild;
 
     /**
      * Creates a default AKTreeNode with a null parent and an empty list of
      * children.
      */
     public AKTreeNode() {
-        children = new ArrayList();
+        leftChild = null;
+        rightChild = null;
     }
 
     /**
@@ -72,11 +240,14 @@ class AKTreeNode<T> {
      *
      * @param data the object this node should contain
      * @param parent the parent node for this node
-     * @param children the children list for this node
+     * @param leftChild the child less than this Node
+     * @param rightChild the child greater than this Node
      */
-    public AKTreeNode(T data, AKTreeNode parent, ArrayList<AKTreeNode<T>> children) {
+    public AKTreeNode(T data, AKTreeNode parent, AKTreeNode<T> leftChild,
+            AKTreeNode<T> rightChild) {
         this(data, parent);
-        this.children = children;
+        this.leftChild = leftChild;
+        this.rightChild = rightChild;
     }
 
     /**
@@ -108,7 +279,8 @@ class AKTreeNode<T> {
     }
 
     /**
-     *
+     * Sets the parent of this node to the passed Node. Can be null, although
+     * why would it be null? We're not running a forestry over here.
      *
      * @param parent the parent to set
      */
@@ -117,16 +289,65 @@ class AKTreeNode<T> {
     }
 
     /**
-     * @return the children
+     * @return the leftChild
      */
-    public ArrayList<AKTreeNode<T>> getChildren() {
-        return children;
+    public AKTreeNode<T> getLeftChild() {
+        return leftChild;
     }
 
     /**
-     * @param children the children to set
+     * @param leftChild the leftChild to set
      */
-    public void setChildren(ArrayList<AKTreeNode<T>> children) {
-        this.children = children;
+    public void setLeftChild(AKTreeNode<T> leftChild) {
+        this.leftChild = leftChild;
+    }
+
+    /**
+     * @return the rightChild
+     */
+    public AKTreeNode<T> getRightChild() {
+        return rightChild;
+    }
+
+    /**
+     * @param rightChild the rightChild to set
+     */
+    public void setRightChild(AKTreeNode<T> rightChild) {
+        this.rightChild = rightChild;
+    }
+
+    /**
+     * Returns this node's Object's <code>equals</code> method's return value
+     * for the passed object.
+     *
+     * @param object an object to test for equality with this node's object
+     * @return the same value as data.equals(object)
+     */
+    @Override
+    public boolean equals(Object object) {
+        return data.equals(object);
+    }
+
+    /**
+     * Returns a hashCode of this Node.
+     *
+     * @return hashcode etc
+     */
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 67 * hash + Objects.hashCode(this.data);
+        return hash;
+    }
+
+    /**
+     * Returns the (recursive) String value of this node.
+     *
+     * @return recursive strings
+     */
+    public String toString() {
+        return data.toString()
+                + (leftChild == null ? "" : "\n\t" + leftChild.toString())
+                + (rightChild == null ? "" : "\n\t" + rightChild.toString());
     }
 }
