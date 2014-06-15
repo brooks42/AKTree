@@ -50,7 +50,7 @@ public class AKTree<T extends Comparable> {
      *
      * @return the size of the tree
      */
-    public int getSize() {
+    public int size() {
         return size;
     }
 
@@ -59,7 +59,9 @@ public class AKTree<T extends Comparable> {
      * leaves.
      */
     public void confirmSize() {
-        // TODO: calculate size here with a traversal
+        SizeTraversal<T> traveler = new SizeTraversal();
+        depthFirstTraversal(traveler);
+        this.size = traveler.size;
     }
 
     /**
@@ -101,8 +103,79 @@ public class AKTree<T extends Comparable> {
         }
     }
 
-    public void remove(T object) {
-        // TODO: define a removal algorithm?
+    /**
+     * Deletes the passed object from this AKTree and tries to rebuild the tree
+     * using the following rules:
+     *
+     * - If the node has no children, whatever - If the node has one child, that
+     * child is used as the node's replacement. - If the node has 2 children,
+     * the left child will become the new node and this logic will be called
+     * recursively on that node's children until the tree reaches a state where
+     * there are no holes in the tree.
+     *
+     * @param object the object to remove
+     */
+    public void removeAndAttemptToRebuild(T object) {
+        // TODO: actually do this
+    }
+
+    /**
+     * Deletes the passed object and all of its children. Note that, as in life,
+     * destroying the root will destroy the entire tree.
+     *
+     * @param object the object to remove from the tree
+     */
+    public boolean removeAndPrune(T object) {
+        if (root == null) {
+            return false;
+        }
+
+        AKTreeNode<T> node = findNodeForObject(object, root);
+
+        if (node != null) {
+            if (node.getParent() != null) {
+                AKTreeNode parent = node.getParent();
+                if (parent.getLeftChild() != null) {
+                    if (parent.getLeftChild().equals(node)) {
+                        parent.setLeftChild(null);
+                    }
+                }
+                if (parent.getRightChild() != null) {
+                    if (parent.getRightChild().equals(node)) {
+                        parent.setRightChild(null);
+                    }
+                }
+            } else {
+                // this is the root, destroy it
+                root = null;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // this either returns null, which means the object isn't in the tree, or it
+    // returns a node that is the object's wrapper in this tree.
+    private AKTreeNode findNodeForObject(T object, AKTreeNode node) {
+        if (node == null) {
+            return null;
+        }
+        // try the middle (this is a pre-order traversal, after all)
+        if (node.getData().equals(object)) {
+            return node;
+        }
+        // since it wasn't the root, try the left branch
+        if (node.getLeftChild() != null) {
+            AKTreeNode retNode = findNodeForObject(object, node.getLeftChild());
+            if (retNode != null) {
+                return retNode;
+            }
+        }
+        // since it wasn't the root or left, try the right branch
+        if (node.getRightChild() != null) {
+            return findNodeForObject(object, node.getRightChild());
+        }
+        return null;
     }
 
     /**
@@ -156,10 +229,38 @@ public class AKTree<T extends Comparable> {
             String token = scanner.next();
             tree.add(token);
         }
+        tree.confirmSize();
+        System.out.println(tree.size());
         System.out.println(tree.toString());
+
+        System.out.println("======");
+        System.out.println("Found and pruned zoo: (should be true): " + tree.removeAndPrune("zoo"));
+        tree.confirmSize();
+        System.out.println("Should be 12: " + tree.size());
+        System.out.println(tree.toString());
+
+        System.out.println("Found and pruned shames: (should be false):" + tree.removeAndPrune("shames"));
+        tree.confirmSize();
+        System.out.println("Should be 12: " + tree.size());
+        System.out.println(tree.toString());
+
+        System.out.println("Found and pruned shame: (should be true): " + tree.removeAndPrune("shame"));
+        tree.confirmSize();
+        System.out.println("Should be 0: " + tree.size());
+        System.out.println(tree.toString());
+
+        System.out.println("======");
+        System.out.println("Found and pruned through: (should be false because destroyed tree): " + tree.removeAndPrune("through"));
     }
 }
 
+/**
+ * Helpful class to do the <code>toString()</code> method for our Tree and also
+ * to act as an example of how to use an <code>AKTreeTraverser</code> instance.
+ *
+ * @author Chris
+ * @param <T>
+ */
 class ToStringTraversal<T> extends AKTreeTraverser<T> {
 
     public StringBuilder string = new StringBuilder();
@@ -182,6 +283,25 @@ class ToStringTraversal<T> extends AKTreeTraverser<T> {
     @Override
     public String toString() {
         return string.toString();
+    }
+}
+
+/**
+ * Helpful class to do the <code>confirmSize()</code> method for our Tree and
+ * also to act as an example of how to use an <code>AKTreeTraverser</code>
+ * instance.
+ *
+ * @author Chris
+ * @param <T>
+ */
+class SizeTraversal<T> extends AKTreeTraverser<T> {
+
+    public int size = 0;
+
+    // here as we traverse, we increment the public size variable
+    @Override
+    public void traverse(T object, int level) {
+        size++;
     }
 }
 
@@ -296,9 +416,12 @@ class AKTreeNode<T> {
     }
 
     /**
-     * @param leftChild the leftChild to set
+     * @param leftChild the leftChild to set. Can totally be null.
      */
     public void setLeftChild(AKTreeNode<T> leftChild) {
+        if (leftChild != null) {
+            leftChild.parent = this;
+        }
         this.leftChild = leftChild;
     }
 
@@ -310,9 +433,12 @@ class AKTreeNode<T> {
     }
 
     /**
-     * @param rightChild the rightChild to set
+     * @param rightChild the rightChild to set. Can totally be null.
      */
     public void setRightChild(AKTreeNode<T> rightChild) {
+        if (rightChild != null) {
+            rightChild.parent = this;
+        }
         this.rightChild = rightChild;
     }
 
@@ -325,6 +451,9 @@ class AKTreeNode<T> {
      */
     @Override
     public boolean equals(Object object) {
+        if (object instanceof AKTreeNode){
+            return ((AKTreeNode)object).getData().equals(data);
+        }
         return data.equals(object);
     }
 
